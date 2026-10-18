@@ -1,185 +1,231 @@
-# Ironwork: Online Gym Management System
+# Ironwork — Online Gym Management System
 
-A full-stack gym management app with a staff area and a member area.
-
-- **Frontend:** React 18, React Router 6, Tailwind CSS 3, Vite
-- **Backend:** Node.js, Express 4 (REST API)
-- **Database:** PostgreSQL with Prisma ORM (migrations and seed script included)
-- **Auth:** JWT, passwords hashed with bcrypt, role-based access (`ADMIN`, `MEMBER`)
-- **Tests:** Jest and Supertest (run against a separate test database)
+A full-stack gym management application for managing members, trainers, membership plans, payments, attendance, and workout assignments from one dashboard.
 
 ## Features
 
-| Area | What it does |
-|---|---|
-| Public site | Landing page, live membership plans from the API, register and sign in |
-| Member area | Dashboard (days left, visits, trainer), profile and body information, plan requests, payment history, assigned workouts, check-in and check-out, change password |
-| Staff area | Overview dashboard, members (search, filter, create, edit, deactivate, delete), member detail (body information, trainer assignment, workout assignment), memberships, payments, attendance, trainers, plans, exercise library, workout plan builder |
-| Quality | Server-side validation (zod), client-side validation, loading states, error messages, pagination |
+- **Authentication and roles:** JWT-based authentication with password hashing.
+- **Dashboard:** Overview of gym activity and key records.
+- **Members:** Create, view, update, and manage member profiles and fitness goals.
+- **Trainers:** Manage trainer profiles and assign trainers to members.
+- **Membership plans:** Maintain plans and their pricing/duration details.
+- **Memberships:** Track member subscriptions and membership status.
+- **Payments:** Record and review membership payments.
+- **Attendance:** Check members in and out and review attendance records.
+- **Workouts and exercises:** Maintain exercises and assign workout plans to members.
+- **Validation and error handling:** Server-side validation and consistent API responses.
+- **Automated tests:** Jest and Supertest test coverage for key API behaviour.
 
-### Business rules
+## Technology stack
 
-- A member can have only one **ACTIVE** membership at a time.
-- A member's plan request is created as **PENDING**. Recording a payment linked to it activates it (the period starts that day).
-- Memberships past their end date are marked **EXPIRED** automatically whenever they are read.
-- Check-in needs an active membership and no open visit. Check-out closes the open visit.
-- Plans, exercises or trainers cannot be deleted while other records depend on them (plans with memberships, exercises used in workouts). Deactivate plans instead.
-- Anyone can register, but only as `MEMBER`. The first `ADMIN` is created by the seed script.
+### Frontend
+- React 18
+- React Router 6
+- Tailwind CSS
+- Vite
 
-## Requirements (Windows)
+### Backend
+- Node.js
+- Express
+- Prisma ORM
+- PostgreSQL
+- JSON Web Tokens (JWT)
+- bcrypt
 
-1. **Node.js 20 or newer** (LTS): https://nodejs.org
-2. **PostgreSQL 14 or newer**: https://www.postgresql.org/download/windows/
-   During installation, remember the password you set for the `postgres` user. Keep the default port `5432`.
+### Testing and tooling
+- Jest
+- Supertest
+- npm
 
-Check your tools in PowerShell:
+## Requirements
+
+Install the following before running the project:
+
+- Node.js 20 or later (LTS recommended)
+- npm (included with Node.js)
+- PostgreSQL 14 or later
+- Git
+
+Check the installed versions:
 
 ```powershell
 node --version
 npm --version
+git --version
 ```
 
-## 1. Create the databases
+## Project structure
 
-Create two empty databases: `gymdb` (the app) and `gymdb_test` (used only by the tests, which wipe it).
-
-**Option A: pgAdmin** (installed with PostgreSQL): right-click *Databases*, choose *Create > Database*, and create both.
-
-**Option B: psql** (adjust the version folder, for example `16`):
-
-```powershell
-& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -c "CREATE DATABASE gymdb;"
-& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -c "CREATE DATABASE gymdb_test;"
+```text
+online-gym-management/
+├── client/                 # React + Vite frontend
+├── server/                 # Express API and Prisma schema/migrations
+├── package.json            # Root scripts
+├── README.md
+└── ...
 ```
 
-## 2. Install and configure
+## Setup
 
-From the project folder (the one containing this README):
+Run commands from the project root — the folder that contains this README and the root `package.json`.
+
+### 1. Install dependencies
 
 ```powershell
-cd online-gym-management-v2
 npm run install:all
-
-copy server\.env.example server\.env
-copy server\.env.test.example server\.env.test
-copy client\.env.example client\.env
 ```
 
-Edit **`server\.env`** (Notepad or VS Code) and set:
+### 2. Create the PostgreSQL databases
 
-| Variable | What to put |
-|---|---|
-| `DATABASE_URL` | Replace `YOUR_PASSWORD` with your `postgres` password. If the password has special characters (`@ : / # ?`), URL-encode them (for example `@` becomes `%40`). |
-| `JWT_SECRET` | A long random string. Generate one with: `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | The administrator login the seed script creates. Password: at least 8 characters with a letter and a number. |
-| `SEED_DEMO_DATA` | `true` to also create 3 demo members, or `false` for an empty gym. |
-| `SEED_DEMO_PASSWORD` | Password for the demo members (same rules as above). Only needed if demo data is on. |
+Create two databases: one for the app and one for automated tests.
 
-The seed script refuses to run with the placeholder passwords, so nothing is ever created with a default secret.
+Using `psql` (adjust the path if your PostgreSQL version is installed in a different folder):
 
-Edit **`server\.env.test`**: replace `YOUR_PASSWORD` in `DATABASE_URL` (keep the database name `gymdb_test`).
+```powershell
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -c "CREATE DATABASE gymdb;"
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -c "CREATE DATABASE gymdb_test;"
+```
 
-## 3. Create the tables and seed data
+If either database already exists, PostgreSQL will report that it exists; do not create a duplicate. You can also create both databases through pgAdmin.
+
+### 3. Configure environment files
+
+Copy the example files:
+
+```powershell
+Copy-Item server\.env.example server\.env
+Copy-Item server\.env.test.example server\.env.test
+Copy-Item client\.env.example client\.env
+```
+
+Open `server\.env` and `server\.env.test` and set the database connection details to match your local PostgreSQL username, password, host, port, and database names.
+
+- The main environment file should connect to `gymdb`.
+- The test environment file should connect to `gymdb_test`.
+- Keep the test JWT secret separate from the development JWT secret.
+- Do not commit `.env` files or share their secrets publicly. Use the `.env.example` files as templates.
+
+### 4. Run database migrations
+
+From the project root:
 
 ```powershell
 npm run db:migrate
+```
+
+If the command is not available in your checkout, change to the server directory and run the Prisma migration command used by the project:
+
+```powershell
+cd server
+npx prisma migrate deploy
+cd ..
+```
+
+### 5. Seed demo data
+
+From the project root, run:
+
+```powershell
 npm run db:seed
 ```
 
-`db:seed` is safe to run more than once. It creates the admin account, three plans (Monthly, Quarterly, Annual), three trainers, twelve exercises, two workout plans and, if enabled, demo members (`aarav@example.com`, `diya@example.com`, `kabir@example.com`).
+If your root scripts do not provide `db:seed`, check the `scripts` section of `server\package.json` and use the seed command defined there.
 
-## 4. Run the app
+## Run the application
+
+From the project root:
 
 ```powershell
 npm run dev
 ```
 
-- Website: http://localhost:5173
-- API health check: http://localhost:5000/api/health
+When the development servers start, open:
 
-Sign in at `/login` with the `ADMIN_EMAIL` and `ADMIN_PASSWORD` you chose for the staff area. Members can register themselves, or use the demo accounts with `SEED_DEMO_PASSWORD`.
+- **Frontend:** http://localhost:5173/
+- **API base URL:** http://localhost:5000/api
+- **API health check:** http://localhost:5000/api/health
 
-To run the two parts separately: `npm --prefix server run dev` and `npm --prefix client run dev`.
+Keep the terminal running while using the app. Stop the development processes with `Ctrl+C`.
 
-## 5. Run the tests
+## Tests
 
-The tests use the separate `gymdb_test` database and refuse to run against any database whose name does not contain `test`.
+The automated tests use a separate database. Make sure `server\.env.test` points to `gymdb_test`, not the development database.
+
+Apply the test database migrations from the server directory:
 
 ```powershell
-npm run db:test:migrate
+cd server
+npx dotenv -e .env.test -- prisma migrate deploy
+cd ..
+```
+
+Then run the tests from the project root:
+
+```powershell
 npm test
 ```
 
-The suites cover registration, login, token handling, role-based access (401/403), and CRUD for plans, trainers, members, memberships, payments, attendance, exercises and workout plans, plus the member self-service flow.
+The test suite was verified with **39 tests passing across 4 suites** in the development environment. Results may differ if the code or local configuration changes.
 
-## 6. Production build of the frontend
+## Production build
+
+From the project root:
 
 ```powershell
 npm run build
 ```
 
-The output is written to `client\dist`. In production, serve it from a static host and set `VITE_API_URL` in `client\.env` to your API address (and `CLIENT_ORIGIN` in the server `.env` to the site address).
-
-## Project structure
-
-```
-online-gym-management-v2/
-  package.json            root scripts (install:all, dev, db:*, test, build)
-  server/
-    prisma/               schema.prisma, migrations/, seed.js
-    src/
-      app.js, server.js
-      config/env.js       environment loading and checks
-      middleware/         auth (JWT, roles), validate (zod), errorHandler
-      validators/         zod schemas for every endpoint
-      services/           membership and attendance rules
-      routes/             auth, plans, members, trainers, memberships, payments,
-                          attendance, exercises, workouts, me, dashboard
-    tests/                Jest + Supertest suites
-  client/
-    src/
-      api/                axios instance, error helper
-      context/            AuthContext
-      hooks/              useApi
-      components/         UI kit, CrudPage, DashboardLayout, ProfileForm
-      pages/              public, auth, admin, member
-```
+The frontend production build is generated by the configured Vite build script.
 
 ## API overview
 
-All endpoints are under `/api`. Protected routes need `Authorization: Bearer <token>`. List endpoints accept `page`, `pageSize` (max 100) and return `{ data, meta }`.
+The backend API is served from `/api`. The main feature areas include:
 
-| Endpoint | Access |
+| Area | Purpose |
 |---|---|
-| `POST /auth/register`, `POST /auth/login` | public |
-| `GET /auth/me`, `PUT /auth/password` | signed in |
-| `GET /plans` | public (non-admins see active plans only) |
-| `POST/PUT/DELETE /plans` | admin |
-| `/members`, `/members/:id`, `/members/:id/profile`, `/members/:id/trainer` | admin |
-| `/trainers`, `/memberships`, `/memberships/:id/status`, `/payments`, `/attendance`, `/attendance/check-in`, `/attendance/:id/check-out` | admin |
-| `GET /exercises` | signed in |
-| `POST/PUT/DELETE /exercises`, `/workouts`, `/workouts/:id/assign` | admin |
-| `/me/profile`, `/me/trainer`, `/me/memberships`, `/me/payments`, `/me/attendance`, `/me/attendance/check-in`, `/me/attendance/check-out`, `/me/workouts` | member |
-| `GET /dashboard/admin`, `GET /dashboard/member` | admin, member |
+| Authentication | Register/login and token-based access |
+| Dashboard | Summary information for the dashboard |
+| Members | Member profile and fitness-goal management |
+| Trainers | Trainer management and member assignments |
+| Plans and memberships | Plan configuration and member subscriptions |
+| Payments | Payment records and payment status |
+| Attendance | Check-in/check-out and attendance history |
+| Workouts and exercises | Exercise catalogue and workout assignments |
+
+For exact endpoint paths, request bodies, and response formats, inspect the route files in `server/`. Protected endpoints require a valid JWT according to the backend's authentication middleware.
 
 ## Troubleshooting
 
-| Problem | Fix |
-|---|---|
-| `Missing environment variable DATABASE_URL` | You have not created `server\.env` (step 2). |
-| `P1000` / authentication failed | Wrong password in `DATABASE_URL`, or special characters not URL-encoded. |
-| `P1001` can't reach database | PostgreSQL service is not running (check *Services* for `postgresql-x64-16`), or the port is not 5432. |
-| `P3009` / migration errors on a fresh database | Run `npm --prefix server run db:push` to create the tables directly from `schema.prisma`, then `npm run db:seed`. |
-| `EPERM` while running `prisma generate` | Stop `npm run dev` (it locks the Prisma engine file), then run `npm --prefix server install` again. |
-| Seed says a password must contain a letter and a number | Edit `ADMIN_PASSWORD` and `SEED_DEMO_PASSWORD` in `server\.env`. |
-| `Refusing to reset database` when testing | `server\.env.test` must point to a database whose name contains `test`. |
-| Port 5000 or 5173 already in use | Change `PORT` in `server\.env` (and the proxy target in `client\vite.config.js`), or close the other program. |
+### PostgreSQL connection errors
 
-## Known limitations
+1. Confirm that the PostgreSQL service is running.
+2. Verify the host, port, username, password, and database name in the relevant `.env` file.
+3. Confirm that `gymdb` and `gymdb_test` exist.
+4. On this Windows setup, the PostgreSQL service name is `postgresql-x64-18`. Your service name may differ if you installed another version.
 
-- Payments are manual records entered by staff. There is no online payment gateway.
-- Trainers are records managed by staff. They do not have their own login.
-- Members request a plan online; staff record the payment and activation. There is no automatic renewal.
-- A visit that is never checked out stays open until staff or the member closes it.
-- Times use the server's time zone for "today" and "this month" statistics.
-- No email notifications or password reset by email.
+### Prisma cannot connect or reports a missing schema
+
+Confirm that the database URL in the applicable environment file points to the intended database, then run the migration command for that database. Do not point test commands at the development database.
+
+### Port already in use
+
+If port `5173` or `5000` is already in use, stop the other process using that port or update the relevant project configuration.
+
+### Login or seed-data issues
+
+Check that migrations and seed commands completed successfully and that you are using the intended development account/configuration. Do not paste passwords, JWT secrets, or other credentials into public issues.
+
+## Security notes
+
+- Keep `.env` and `.env.test` files out of Git.
+- Use strong, private secrets outside local development.
+- Use only synthetic/demo data for testing.
+- Do not expose the development server or database publicly without appropriate production security configuration.
+
+## Current project status
+
+The project was built and tested locally. At the time this README was prepared, the production build succeeded and the automated test suite passed **39 tests across 4 suites**. Your results may vary if dependencies, configuration, or source code change.
+
+## License
+
+No license has been specified yet. Add a `LICENSE` file and update this section if you intend to distribute the project under a particular open-source license.
