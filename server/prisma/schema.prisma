@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+enum MembershipStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  UPI
+  BANK_TRANSFER
+}
+
+enum Difficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(MEMBER)
+  phone        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  profile            MemberProfile?
+  trainerAssignment  TrainerAssignment?
+  memberships        Membership[]
+  payments           Payment[]
+  attendances        Attendance[]
+  workoutAssignments MemberWorkout[]
+}
+
+model MemberProfile {
+  id               Int      @id @default(autoincrement())
+  userId           Int      @unique
+  age              Int?
+  gender           String?
+  heightCm         Float?
+  weightKg         Float?
+  bodyFatPercent   Float?
+  goal             String?
+  medicalNotes     String?
+  emergencyContact String?
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Trainer {
+  id              Int      @id @default(autoincrement())
+  name            String
+  email           String   @unique
+  phone           String?
+  specialization  String
+  experienceYears Int      @default(0)
+  bio             String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  assignments TrainerAssignment[]
+}
+
+model TrainerAssignment {
+  id         Int      @id @default(autoincrement())
+  memberId   Int      @unique
+  trainerId  Int
+  assignedAt DateTime @default(now())
+
+  member  User    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  trainer Trainer @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  @@index([trainerId])
+}
+
+model Plan {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  description  String?
+  durationDays Int
+  price        Decimal  @db.Decimal(10, 2)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships Membership[]
+}
+
+model Membership {
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  planId    Int
+  startDate DateTime
+  endDate   DateTime
+  status    MembershipStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan     Plan      @relation(fields: [planId], references: [id])
+  payments Payment[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Payment {
+  id           Int           @id @default(autoincrement())
+  userId       Int
+  membershipId Int?
+  amount       Decimal       @db.Decimal(10, 2)
+  method       PaymentMethod @default(CASH)
+  reference    String?
+  note         String?
+  paidAt       DateTime      @default(now())
+  createdAt    DateTime      @default(now())
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  membership Membership? @relation(fields: [membershipId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([membershipId])
+}
+
+model Attendance {
+  id       Int       @id @default(autoincrement())
+  userId   Int
+  checkIn  DateTime  @default(now())
+  checkOut DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([checkIn])
+}
+
+model Exercise {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  muscleGroup String
+  equipment   String?
+  description String?
+  difficulty  Difficulty @default(BEGINNER)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  planExercises WorkoutPlanExercise[]
+}
+
+model WorkoutPlan {
+  id          Int        @id @default(autoincrement())
+  name        String     @unique
+  description String?
+  goal        String?
+  difficulty  Difficulty @default(BEGINNER)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  exercises   WorkoutPlanExercise[]
+  assignments MemberWorkout[]
+}
+
+model WorkoutPlanExercise {
+  id            Int    @id @default(autoincrement())
+  workoutPlanId Int
+  exerciseId    Int
+  dayLabel      String @default("Day 1")
+  sets          Int    @default(3)
+  reps          Int    @default(10)
+  restSeconds   Int    @default(60)
+  position      Int    @default(0)
+
+  workoutPlan WorkoutPlan @relation(fields: [workoutPlanId], references: [id], onDelete: Cascade)
+  exercise    Exercise    @relation(fields: [exerciseId], references: [id])
+
+  @@index([workoutPlanId])
+  @@index([exerciseId])
+}
+
+model MemberWorkout {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  workoutPlanId Int
+  assignedAt    DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workoutPlan WorkoutPlan @relation(fields: [workoutPlanId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workoutPlanId])
+}
